@@ -1,0 +1,24 @@
+
+metadata:
+ project_name: "shift"
+ author: "BadrELAFI"
+
+datasets:
+ baseline_path: "archive/baseline.csv"
+ target_path: "archive/target.csv"
+
+time_parsing:
+ failure_threshold: 10.0
+
+tests:
+ defaults:
+   psi_threshold: 0.2
+   ks_alpha: 0.05
+ numeric:
+  - column: "points"
+    run_ks_test: true
+
+ categorical:
+  - column: "user_region"
+    method: "js_divergence"
+    threshold: 0.1
