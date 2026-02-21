@@ -2,9 +2,9 @@ import polars as pl
 from utils.descriptive_stats import DescriptiveStats
 from utils.time_parser import TimeParser
 from detector.numeric_drift_detector import NumericDriftDetector
-from cli.config_loader import ConfigLoader
 from pathlib import Path
 from cli.interface import detect
+from utils.helper import get_numerical_drift_elligible_numeric_column
 
 
 def load_df(path: str) -> pl.DataFrame:
@@ -26,35 +26,50 @@ def run(parameters: dict):
             "It seems to be a problem with the parameters of the tool. Please try again"
         )
 
-    return {}
+    if parameters["baseline"] is None:
+        run_joined_ds(parameters)
+    else:
+        run_separate_ds(parameters)
+
+
+def run_joined_ds(parameters: dict):
+    dataset = load_df(parameters["target"])
+    timeparser = TimeParser(user_input_format=parameters["date_format"])
+    dataset = timeparser.parse_time_new(dataset, parameters["date_column"])
+    date_start = timeparser.parse_time_start_end(parameters["start"])
+    date_end = timeparser.parse_time_start_end(parameters["end"])
+
+    parsedcol = f"parsed_{parameters['date_column']}"
+
+    target_ds = dataset.filter(pl.col(parsedcol).is_between(date_start, date_end))
+    baseline_ds = dataset.filter(~pl.col(parsedcol).is_between(date_start, date_end))
+
+    ignored_columns = [parsedcol, parameters["date_column"]]
+    elligible_features = get_numerical_drift_elligible_numeric_column(
+        baseline_ds, ignored_columns
+    )
+    print(
+        f"found {len(elligible_features)} eligible numeric features for drift detection."
+    )
+
+    numerical_detector = NumericDriftDetector(
+        alpha=parameters["ks_alpha"], psi_threshold=parameters["psi_threshold"]
+    )
+
+
+def run_separate_ds(parameters: dict):
+    target_ds = load_df(parameters["target"])
+    baseline_ds = load_df(parameters["baseline"])
+
+    # no need to parse time since they are already seperated ?
+    for col in target_ds.get_columns():
+        print(DescriptiveStats.get_stats(col))
+
+    for col in baseline_ds.get_columns():
+        print(DescriptiveStats.get_stats(col))
 
 
 if __name__ == "__main__":
-    yamlconf = ConfigLoader()
-    conf = yamlconf.load_config()
-
-    # 2. Load DataFrames
-    df_base = load_df(conf["datasets"]["baseline_path"])
-    df_target = load_df(conf["datasets"]["target_path"])
-
-    detector = NumericDriftDetector()
-
-    print("\n--- Running Numeric Drift Tests ---")
-    for test_config in conf["tests"]["numeric"]:
-        col = test_config["column"]
-        psi_limit = test_config.get("psi_threshold", 0.2)
-
-        # Calculate PSI
-        psi_results = detector.calculate_psi(
-            df_base, df_target, column_baseline=col, column_target=col, nbins=10
-        )
-
-        ks_test = detector.kstest(
-            df_base, df_target, column_baseline=col, column_target=col
-        )
-
-        # Output Results
-        status = "DRIFT" if psi_results["drift_detected"] else "STABLE"
-        print(f"[{status}] Column: {col:15} | PSI: {psi_results['psi_value']:.4f}")
-
-        print(ks_test)
+    # todo
+    parameters = detect()
+    run_joined_ds(parameters=parameters)

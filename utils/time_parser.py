@@ -1,3 +1,5 @@
+import datetime
+from typing import Optional
 import polars as pl
 
 
@@ -27,16 +29,19 @@ class TimeParser:
         df = df.with_columns(expr)
 
         failure_stats = df.select(
-            total=pl.col(column_name).is_not_null(),
-            failed=pl.col(parsedcol).is_null() & pl.col(column_name).is_not_null(),
-        ).sum()
+            total=pl.col(column_name).is_not_null().sum(),
+            failed=(
+                pl.col(parsedcol).is_null() & pl.col(column_name).is_not_null()
+            ).sum(),
+        )
 
         failed_count = failure_stats.get_column("failed")[0]
         total_count = failure_stats.get_column("total")[0]
-        failure_rate = (failed_count / total_count) * 100
 
         if total_count == 0:
             raise ValueError(f"Column '{column_name}' contains no valid values")
+
+        failure_rate = (failed_count / total_count) * 100
 
         if failure_rate > self.max_fail_ratio:
             raise ValueError(
@@ -45,3 +50,23 @@ class TimeParser:
             )
 
         return df
+
+    def parse_time_start_end(self, date_str: Optional[str]):
+        if date_str is None:
+            return None
+
+        if self.user_input_format:
+            try:
+                return datetime.datetime.strptime(date_str, self.user_input_format)
+            except ValueError:
+                raise ValueError(
+                    f"Date '{date_str}' does not match expected format "
+                    f"'{self.user_input_format}'."
+                )
+        try:
+            return pl.Series([date_str]).str.to_datetime(strict=False)[0]
+        except Exception:
+            raise ValueError(
+                "could not parse the start or end date. Please make sure that "
+                "the format matches both start/end and the dates in the dataset"
+            )
