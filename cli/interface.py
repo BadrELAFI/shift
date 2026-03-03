@@ -1,8 +1,11 @@
 import typer
 from typing import Optional
-from config_loader import ConfigLoader
+from cli.config_loader import ConfigLoader
+from core import run
 
-app = typer.Typer(help="Shift: The data drift detection tool")
+app = typer.Typer(
+    help="Shift: The data drift detection tool", invoke_without_command=True
+)
 
 
 @app.command()
@@ -31,7 +34,8 @@ def detect(
         "-ksa",
         help="significance value for ks test (default: 0.05)",
     ),
-) -> dict:
+):
+    print("Loaded interface.py")
     config = ConfigLoader.load_config()
     typer.echo(f"Initializing detection on: {target}")
 
@@ -57,7 +61,7 @@ def detect(
         else config.get("tests", {}).get("defaults", {}).get("ks_alpha", 0.05)
     )
 
-    return {
+    parameters = {
         "target": target,
         "baseline": baseline,
         "start": start,
@@ -67,3 +71,5 @@ def detect(
         "ks_alpha": ks_alpha,
         "date_format": date_format,
     }
+
+    run(parameters)

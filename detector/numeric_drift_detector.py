@@ -93,3 +93,67 @@ class NumericDriftDetector:
         if psi < 0.2:
             return "Moderate shift"
         return "Significant shift"
+
+    def evaluate_column(
+        self,
+        df_baseline: pl.DataFrame,
+        df_target: pl.DataFrame,
+        column_baseline: str,
+        column_target: str,
+    ) -> dict:
+        """Runs all drift tests on a single column and returns a structured report."""
+        try:
+            ks_results = self.kstest(
+                df_baseline, df_target, column_baseline, column_target
+            )
+            psi_results = self.calculate_psi(
+                df_baseline, df_target, column_baseline, column_target
+            )
+
+            overall_drift = (
+                ks_results["drift_detected"] or psi_results["drift_detected"]
+            )
+
+            return {
+                "feature_name": column_target,
+                "status": "success",
+                "overall_drift_detected": overall_drift,
+                "ks_test": ks_results,
+                "psi_test": psi_results,
+            }
+        except Exception as e:
+            # Crucial for CLI tools: don't let one bad column crash the whole report
+            return {
+                "feature_name": column_target,
+                "status": "error",
+                "error_message": str(e),
+                "overall_drift_detected": False,
+            }
+
+    def format_cli_summary(self, column_report: dict) -> str:
+        feature = column_report["feature_name"]
+
+        if column_report["status"] == "error":
+            return (
+                f"[ERROR] Feature: {feature} | Reason: {column_report['error_message']}\n"
+                + "-" * 40
+            )
+
+        drift_icon = (
+            "DRIFT DETECTED" if column_report["overall_drift_detected"] else "No Drift"
+        )
+        ks = column_report["ks_test"]
+        psi = column_report["psi_test"]
+
+        report_str = (
+            f"Feature: **{feature}** | {drift_icon}\n"
+            f"  ├─ Kolmogorov-Smirnov Test (alpha={ks['alpha']})\n"
+            f"  │  ├─ KS-Stat : {ks['ks_stat']:.4f}\n"
+            f"  │  ├─ P-Value : {ks['p_value']:.4e}\n"
+            f"  │  └─ Drift   : {'Yes' if ks['drift_detected'] else 'No'}\n"
+            f"  └─ Population Stability Index (threshold={self.psi_threshold})\n"
+            f"     ├─ PSI     : {psi['psi_value']:.4f}\n"
+            f"     ├─ Shift   : {psi['interpretation']}\n"
+            f"     └─ Drift   : {'Yes' if psi['drift_detected'] else 'No'}\n" + "-" * 40
+        )
+        return report_str

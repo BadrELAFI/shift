@@ -5,7 +5,7 @@ class ConfigLoader:
     @staticmethod
     def load_config():
         try:
-            with open("config.yaml", "r") as file:
+            with open("cli/config.yaml", "r") as file:
                 config = yaml.safe_load(file)
             return config
         except FileNotFoundError as e:
