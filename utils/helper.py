@@ -13,7 +13,7 @@ def get_numerical_drift_elligible_numeric_column(
 
     total_rows = numeric_df.height
 
-    for col in df_filtered.get_columns():
+    for col in numeric_df.get_columns():
         if col.null_count() == total_rows:
             continue
 
