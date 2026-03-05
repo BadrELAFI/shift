@@ -8,10 +8,10 @@ class NumericDriftDetector:
         self.alpha = alpha
         self.psi_threshold = psi_threshold
 
-    def kstest(
+    def _kstest(
         self,
-        df_baseline,
-        df_target,
+        df_baseline: pl.DataFrame,
+        df_target: pl.DataFrame,
         column_baseline: str,
         column_target: str,
     ) -> dict:
@@ -27,7 +27,7 @@ class NumericDriftDetector:
             "drift_detected": p_value < self.alpha,
         }
 
-    def make_psi_quantile_bins(
+    def _make_psi_quantile_bins(
         self,
         df_baseline: pl.DataFrame,
         column_baseline: str,
@@ -50,7 +50,7 @@ class NumericDriftDetector:
         edges = np.concatenate(([-np.inf], edges[1:-1], [np.inf]))
         return edges
 
-    def binned_proportions(self, df, column: str, breaks: list) -> list:
+    def _binned_proportions(self, df, column: str, breaks: list) -> list:
         binned = (
             df.select(pl.col(column).drop_nulls())
             .with_columns(pl.col(column).cut(breaks=breaks).alias("bin"))
@@ -65,15 +65,15 @@ class NumericDriftDetector:
 
         return (binned["len"] / total).to_list()
 
-    def calculate_psi(
+    def _calculate_psi(
         self, df_baseline, df_target, column_baseline, column_target, nbins=10
     ) -> dict:
-        edges = self.make_psi_quantile_bins(df_baseline, column_baseline, nbins)
+        edges = self._make_psi_quantile_bins(df_baseline, column_baseline, nbins)
         breaks = edges[1:-1].tolist()
 
         # proportions
-        prop_expected = self.binned_proportions(df_baseline, column_baseline, breaks)
-        prop_actual = self.binned_proportions(df_target, column_target, breaks)
+        prop_expected = self._binned_proportions(df_baseline, column_baseline, breaks)
+        prop_actual = self._binned_proportions(df_target, column_target, breaks)
 
         epsilon = 1e-6  # cas ou on divise par 0 car on calucle ln(actual/expected)
         expected = np.array(prop_expected) + epsilon
@@ -103,10 +103,10 @@ class NumericDriftDetector:
     ) -> dict:
         """Runs all drift tests on a single column and returns a structured report."""
         try:
-            ks_results = self.kstest(
+            ks_results = self._kstest(
                 df_baseline, df_target, column_baseline, column_target
             )
-            psi_results = self.calculate_psi(
+            psi_results = self._calculate_psi(
                 df_baseline, df_target, column_baseline, column_target
             )
 
