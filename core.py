@@ -2,8 +2,12 @@ import polars as pl
 from utils.descriptive_stats import DescriptiveStats
 from utils.time_parser import TimeParser
 from detector.numeric_drift_detector import NumericDriftDetector
+from detector.categorical_drift_detector import CategoricalDriftDetector
 from pathlib import Path
-from utils.helper import get_numerical_drift_elligible_column
+from utils.helper import (
+    get_numerical_drift_elligible_column,
+    get_categorical_drift_elligble_column,
+)
 
 
 def load_df(path: str) -> pl.DataFrame:
@@ -44,22 +48,42 @@ def run_joined_ds(parameters: dict):
     baseline_ds = dataset.filter(~pl.col(parsedcol).is_between(date_start, date_end))
 
     ignored_columns = [parsedcol, parameters["date_column"]]
-    elligible_features = get_numerical_drift_elligible_column(
+    elligible_numeric_features = get_numerical_drift_elligible_column(
         baseline_ds, ignored_columns
     )
+    elligible_categoric_features = get_categorical_drift_elligble_column(
+        baseline_ds, excluded_cols=[]
+    )
+
     print(
-        f"found {len(elligible_features)} eligible numeric features for drift detection."
+        f"found {len(elligible_numeric_features)} eligible numeric features for drift detection."
+        f"found {len(elligible_categoric_features)} eligible categorical features for drift detection."
     )
 
     numerical_detector = NumericDriftDetector(
         alpha=parameters["ks_alpha"], psi_threshold=parameters["psi_threshold"]
     )
+    categorical_detector = CategoricalDriftDetector(
+        psi_threshold=parameters["psi_threshold"]
+    )
 
-    for col in elligible_features:
-        column_report = numerical_detector.evaluate_column(
+    for col in elligible_numeric_features:
+        column_report_numeric = numerical_detector.evaluate_column(
             baseline_ds, target_ds, col, col
         )
-        print(numerical_detector.format_cli_summary(column_report=column_report))
+        print(
+            numerical_detector.format_cli_summary(column_report=column_report_numeric)
+        )
+
+    for col in elligible_categoric_features:
+        column_report_categoric = categorical_detector.evaluate_column(
+            baseline_ds, target_ds, col, col
+        )
+        print(
+            categorical_detector.format_cli_summary(
+                column_report=column_report_categoric
+            )
+        )
 
 
 def run_separate_ds(parameters: dict):
@@ -69,22 +93,41 @@ def run_separate_ds(parameters: dict):
     # no need to parse time since they are already seperated ?
 
     ignored_columns = [parameters["date_column"]]
-    elligible_features = get_numerical_drift_elligible_column(
+    elligible_numeric_features = get_numerical_drift_elligible_column(
         baseline_ds, ignored_columns
     )
+    elligible_categoric_features = get_categorical_drift_elligble_column(
+        baseline_ds, excluded_cols=[]
+    )
     print(
-        f"found {len(elligible_features)} eligible numeric features for drift detection."
+        f"found {len(elligible_numeric_features)} eligible numeric features for drift detection."
+        f"found {len(elligible_categoric_features)} eligible categorical features for drift detection."
     )
 
     numerical_detector = NumericDriftDetector(
         alpha=parameters["ks_alpha"], psi_threshold=parameters["psi_threshold"]
     )
-    for col in elligible_features:
+    categorical_detector = CategoricalDriftDetector(
+        psi_threshold=parameters["psi_threshold"]
+    )
+    for col in elligible_numeric_features:
         print(DescriptiveStats.get_stats(target_ds[col]))
         print(DescriptiveStats.get_stats(baseline_ds[col]))
 
-    for col in elligible_features:
-        column_report = numerical_detector.evaluate_column(
+    for col in elligible_numeric_features:
+        column_report_numeric = numerical_detector.evaluate_column(
             baseline_ds, target_ds, col, col
         )
-        print(numerical_detector.format_cli_summary(column_report=column_report))
+        print(
+            numerical_detector.format_cli_summary(column_report=column_report_numeric)
+        )
+
+    for col in elligible_categoric_features:
+        column_report_categoric = categorical_detector.evaluate_column(
+            baseline_ds, target_ds, col, col
+        )
+        print(
+            categorical_detector.format_cli_summary(
+                column_report=column_report_categoric
+            )
+        )
