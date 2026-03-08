@@ -122,7 +122,6 @@ class NumericDriftDetector:
                 "psi_test": psi_results,
             }
         except Exception as e:
-            # Crucial for CLI tools: don't let one bad column crash the whole report
             return {
                 "feature_name": column_target,
                 "status": "error",

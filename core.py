@@ -3,7 +3,7 @@ from utils.descriptive_stats import DescriptiveStats
 from utils.time_parser import TimeParser
 from detector.numeric_drift_detector import NumericDriftDetector
 from pathlib import Path
-from utils.helper import get_numerical_drift_elligible_numeric_column
+from utils.helper import get_numerical_drift_elligible_column
 
 
 def load_df(path: str) -> pl.DataFrame:
@@ -44,7 +44,7 @@ def run_joined_ds(parameters: dict):
     baseline_ds = dataset.filter(~pl.col(parsedcol).is_between(date_start, date_end))
 
     ignored_columns = [parsedcol, parameters["date_column"]]
-    elligible_features = get_numerical_drift_elligible_numeric_column(
+    elligible_features = get_numerical_drift_elligible_column(
         baseline_ds, ignored_columns
     )
     print(
@@ -69,7 +69,7 @@ def run_separate_ds(parameters: dict):
     # no need to parse time since they are already seperated ?
 
     ignored_columns = [parameters["date_column"]]
-    elligible_features = get_numerical_drift_elligible_numeric_column(
+    elligible_features = get_numerical_drift_elligible_column(
         baseline_ds, ignored_columns
     )
     print(

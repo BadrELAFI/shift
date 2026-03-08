@@ -68,3 +68,64 @@ class CategoricalDriftDetector:
             "drift_detected": p_value < 0.05,
             "distribution_comparison": distribution_comparaison,
         }
+
+    def evaluate_column(
+        self,
+        df_baseline: pl.DataFrame,
+        df_target: pl.DataFrame,
+        column_baseline: str,
+        column_target: str,
+    ) -> dict:
+        """Runs all drift tests on a single column and returns a structured report."""
+        try:
+            chi2_results = self._chi_square(
+                df_baseline, df_target, column_baseline, column_target
+            )
+
+            """    
+            overall_drift = (
+                chi2_results["drift_detected"] or psi_results["drift_detected"]
+            )
+            """
+
+            return {
+                "feature_name": column_target,
+                "status": "success",
+                # "overall_drift_detected": overall_drift,
+                "chi2_test": chi2_results,
+            }
+        except Exception as e:
+            return {
+                "feature_name": column_target,
+                "status": "error",
+                "error_message": str(e),
+                "overall_drift_detected": False,
+            }
+
+    def format_cli_summary(self, column_report: dict) -> str:
+        feature = column_report["feature_name"]
+
+        if column_report["status"] == "error":
+            return (
+                f"[ERROR] Feature: {feature} | Reason: {column_report['error_message']}\n"
+                + "-" * 40
+            )
+
+        drift_icon = (
+            "DRIFT DETECTED" if column_report["overall_drift_detected"] else "No Drift"
+        )
+        chi2 = column_report["chi2_test"]
+        psi = column_report["psi_test"]
+
+        report_str = (
+            f"Feature: **{feature}** | {drift_icon}\n"
+            f"  ├─ Chi Squared Test \n"
+            f"  │  ├─ chi2-Stat : {chi2['chi2_statistic']:.4f}\n"
+            f"  │  ├─ P-Value : {chi2['p_value']:.4e}\n"
+            f"  │  └─ Drift   : {'Yes' if chi2['overall_drift_detected'] else 'No'}\n"
+            f"  └─ Population Stability Index (threshold={self.psi_threshold})\n"
+            f"     ├─ PSI     : {psi['psi_value']:.4f}\n"
+            f"     ├─ Shift   : {psi['interpretation']}\n"
+            f"     └─ Drift   : {'Yes' if psi['drift_detected'] else 'No'}\n" + "-" * 40
+        )
+        return report_str

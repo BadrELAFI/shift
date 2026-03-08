@@ -2,7 +2,7 @@ import polars as pl
 import polars.selectors as cs
 
 
-def get_numerical_drift_elligible_numeric_column(
+def get_numerical_drift_elligible_column(
     df: pl.DataFrame, excluded_cols: list[str]
 ) -> list[str]:
     df_filtered = df.drop(excluded_cols, strict=False)
@@ -29,3 +29,34 @@ def get_numerical_drift_elligible_numeric_column(
         elligible_cols.append(col.name)
 
     return elligible_cols
+
+
+def get_categorical_drift_elligble_column(
+    df: pl.DataFrame,
+    excluded_cols: list[str],
+    max_cardinality: int = 50,
+    null_threshold: float = 0.9,
+) -> list[str]:
+    df_filtered = df.drop(excluded_cols, strict=False)
+
+    categoric_df = df_filtered.select(cs.categorical() | cs.string())
+    eligible_cols = []
+
+    total_rows = categoric_df.height
+
+    for col in categoric_df.get_columns():
+        null_count = col.null_count()
+        num_unique = col.n_unique()
+
+        if null_count == total_rows or num_unique <= 1:
+            continue
+
+        if (null_count / total_rows) > null_threshold:
+            continue
+
+        if num_unique > max_cardinality or num_unique == (total_rows - null_count):
+            continue
+
+        eligible_cols.append(col.name)
+
+    return eligible_cols
