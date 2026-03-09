@@ -69,6 +69,74 @@ class CategoricalDriftDetector:
             "distribution_comparison": distribution_comparaison,
         }
 
+    def _get_category_proportions(
+        self,
+        df: pl.DataFrame,
+        column: str,
+        reference_categories: list | None = None,
+    ) -> dict[str, float]:
+        value_counts = df.select(pl.col(column).drop_nulls()).group_by(column).len()
+
+        total = value_counts["len"].sum()
+        if total == 0:
+            if reference_categories:
+                return {cat: 0.0 for cat in reference_categories}
+            return {}
+
+        proportions = {
+            row[column]: row["len"] / total
+            for row in value_counts.iter_rows(named=True)
+        }
+
+        if reference_categories:
+            return {cat: proportions.get(cat, 0.0) for cat in reference_categories}
+
+        return proportions
+
+    def _calculate_psi(
+        self,
+        df_baseline: pl.DataFrame,
+        df_target: pl.DataFrame,
+        column_baseline: str,
+        column_target: str,
+    ) -> dict:
+        baseline_props = self._get_category_proportions(df_baseline, column_baseline)
+
+        if not baseline_props:
+            raise ValueError(
+                f"Column '{column_baseline}' has no non-null values in baseline."
+            )
+
+        reference_categories = list(baseline_props.keys())
+
+        target_props = self._get_category_proportions(
+            df_target, column_target, reference_categories=reference_categories
+        )
+
+        epsilon = 1e-6
+        expected = (
+            np.array([baseline_props[cat] for cat in reference_categories]) + epsilon
+        )
+        actual = np.array([target_props[cat] for cat in reference_categories]) + epsilon
+
+        psi = np.sum((actual - expected) * np.log(actual / expected))
+
+        return {
+            "psi_value": psi,
+            "drift_detected": psi > self.psi_threshold,
+            "interpretation": self._interpret_psi(psi),
+            "categories": reference_categories,
+            "baseline_proportions": baseline_props,
+            "target_proportions": target_props,
+        }
+
+    def _interpret_psi(self, psi: float) -> str:
+        if psi < 0.1:
+            return "Low shift"
+        if psi < 0.2:
+            return "Moderate shift"
+        return "Significant shift"
+
     def evaluate_column(
         self,
         df_baseline: pl.DataFrame,
@@ -82,17 +150,20 @@ class CategoricalDriftDetector:
                 df_baseline, df_target, column_baseline, column_target
             )
 
-            """    
+            psi_results = self._calculate_psi(
+                df_baseline, df_target, column_baseline, column_target
+            )
+
             overall_drift = (
                 chi2_results["drift_detected"] or psi_results["drift_detected"]
             )
-            """
 
             return {
                 "feature_name": column_target,
                 "status": "success",
-                # "overall_drift_detected": overall_drift,
+                "overall_drift_detected": overall_drift,
                 "chi2_test": chi2_results,
+                "psi_test": psi_results,
             }
         except Exception as e:
             return {
