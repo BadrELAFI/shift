@@ -45,7 +45,7 @@ class CategoricalDriftDetector:
                 [
                     (pl.col("baseline_freq").cast(pl.Float64) / baseline_total)
                     .round(4)
-                    .alias("'baseline_proportion"),
+                    .alias("baseline_proportion"),
                     (pl.col("target_freq").cast(pl.Float64) / target_total)
                     .round(4)
                     .alias("target_proportion"),
@@ -193,7 +193,7 @@ class CategoricalDriftDetector:
             f"  ├─ Chi Squared Test \n"
             f"  │  ├─ chi2-Stat : {chi2['chi2_statistic']:.4f}\n"
             f"  │  ├─ P-Value : {chi2['p_value']:.4e}\n"
-            f"  │  └─ Drift   : {'Yes' if chi2['overall_drift_detected'] else 'No'}\n"
+            f"  │  └─ Drift   : {'Yes' if chi2['drift_detected'] else 'No'}\n"
             f"  └─ Population Stability Index (threshold={self.psi_threshold})\n"
             f"     ├─ PSI     : {psi['psi_value']:.4f}\n"
             f"     ├─ Shift   : {psi['interpretation']}\n"
