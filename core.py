@@ -23,6 +23,21 @@ def load_df(path: str) -> pl.DataFrame:
         raise ValueError(f"Unsupported file format: {suffix}")
 
 
+def print_summary(summary: dict) -> str:
+    result = (
+        f"=========================================\n"
+        f"          DRIFT SUMMARY REPORT           \n"
+        f"=========================================\n"
+        f"Total Features Analyzed: {summary['total_analyzed']}\n"
+        f"Features with Drift: {summary['drift_detected']}\n"
+        f"Features without Drift: {summary['no_drift']}\n"
+        f"Features with Errors: {summary['errors']}\n"
+        f"=========================================\n"
+    )
+
+    return result
+
+
 def run(parameters: dict):
     if not parameters:
         raise ValueError(
@@ -47,6 +62,8 @@ def run_joined_ds(parameters: dict):
     target_ds = dataset.filter(pl.col(parsedcol).is_between(date_start, date_end))
     baseline_ds = dataset.filter(~pl.col(parsedcol).is_between(date_start, date_end))
 
+    summary = {"total_analyzed": 0, "drift_detected": 0, "no_drift": 0, "errors": 0}
+
     ignored_columns = [parsedcol, parameters["date_column"]]
     elligible_numeric_features = get_numerical_drift_elligible_column(
         baseline_ds, ignored_columns
@@ -68,22 +85,43 @@ def run_joined_ds(parameters: dict):
     )
 
     for col in elligible_numeric_features:
+        summary["total_analyzed"] += 1
+
         column_report_numeric = numerical_detector.evaluate_column(
             baseline_ds, target_ds, col, col
         )
+
+        if column_report_numeric["status"] == "error":
+            summary["errors"] += 1
+        elif column_report_numeric["overall_drift_detected"]:
+            summary["drift_detected"] += 1
+        else:
+            summary["no_drift"] += 1
+
         print(
             numerical_detector.format_cli_summary(column_report=column_report_numeric)
         )
 
     for col in elligible_categoric_features:
+        summary["total_analyzed"] += 1
+
         column_report_categoric = categorical_detector.evaluate_column(
             baseline_ds, target_ds, col, col
         )
+        if column_report_categoric["status"] == "error":
+            summary["errors"] += 1
+        elif column_report_categoric["overall_drift_detected"]:
+            summary["drift_detected"] += 1
+        else:
+            summary["no_drift"] += 1
+
         print(
             categorical_detector.format_cli_summary(
                 column_report=column_report_categoric
             )
         )
+
+    print(print_summary(summary))
 
 
 def run_separate_ds(parameters: dict):
@@ -91,6 +129,8 @@ def run_separate_ds(parameters: dict):
     baseline_ds = load_df(parameters["baseline"])
 
     # no need to parse time since they are already seperated ?
+
+    summary = {"total_analyzed": 0, "drift_detected": 0, "no_drift": 0, "errors": 0}
 
     ignored_columns = [parameters["date_column"]]
     elligible_numeric_features = get_numerical_drift_elligible_column(
@@ -110,14 +150,20 @@ def run_separate_ds(parameters: dict):
     categorical_detector = CategoricalDriftDetector(
         psi_threshold=parameters["psi_threshold"]
     )
-    for col in elligible_numeric_features:
-        print(DescriptiveStats.get_stats(target_ds[col]))
-        print(DescriptiveStats.get_stats(baseline_ds[col]))
 
     for col in elligible_numeric_features:
+        summary["total_analyzed"] += 1
         column_report_numeric = numerical_detector.evaluate_column(
             baseline_ds, target_ds, col, col
         )
+
+        if column_report_numeric["status"] == "error":
+            summary["errors"] += 1
+        elif column_report_numeric["overall_drift_detected"]:
+            summary["drift_detected"] += 1
+        else:
+            summary["no_drift"] += 1
+
         print(
             numerical_detector.format_cli_summary(column_report=column_report_numeric)
         )
@@ -126,8 +172,18 @@ def run_separate_ds(parameters: dict):
         column_report_categoric = categorical_detector.evaluate_column(
             baseline_ds, target_ds, col, col
         )
+
+        if column_report_categoric["status"] == "error":
+            summary["errors"] += 1
+        elif column_report_categoric["overall_drift_detected"]:
+            summary["drift_detected"] += 1
+        else:
+            summary["no_drift"] += 1
+
         print(
             categorical_detector.format_cli_summary(
                 column_report=column_report_categoric
             )
         )
+
+    print(print_summary(summary))
