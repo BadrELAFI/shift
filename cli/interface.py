@@ -34,6 +34,9 @@ def detect(
         "-ksa",
         help="significance value for ks test (default: 0.05)",
     ),
+    json_output: str = typer.Option(
+        None, "--json", "-j", help="path for json output file"
+    ),
 ):
     print("Loaded interface.py")
     config = ConfigLoader.load_config()
@@ -70,6 +73,7 @@ def detect(
         "psi_threshold": psi_threshold,
         "ks_alpha": ks_alpha,
         "date_format": date_format,
+        "json_output": json_output,
     }
 
     run(parameters)

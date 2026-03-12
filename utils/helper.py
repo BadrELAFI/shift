@@ -1,5 +1,8 @@
+from numpy import isin
 import polars as pl
 import polars.selectors as cs
+import numpy as np
+import json
 
 
 def get_numerical_drift_elligible_column(
@@ -60,3 +63,18 @@ def get_categorical_drift_elligble_column(
         eligible_cols.append(col.name)
 
     return eligible_cols
+
+
+class NpEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, (pl.DataFrame, pl.Series)):
+            return "<Data omitted for summary report>"
+        if isinstance(obj, np.bool_):
+            return bool(obj)
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return super(NpEncoder, self).default(obj)

@@ -5,9 +5,11 @@ from detector.numeric_drift_detector import NumericDriftDetector
 from detector.categorical_drift_detector import CategoricalDriftDetector
 from pathlib import Path
 from utils.helper import (
+    NpEncoder,
     get_numerical_drift_elligible_column,
     get_categorical_drift_elligble_column,
 )
+import json
 
 
 def load_df(path: str) -> pl.DataFrame:
@@ -38,6 +40,13 @@ def print_summary(summary: dict) -> str:
     return result
 
 
+def export_json(json_export: dict, filename: str):
+    with open(filename, "w") as f:
+        json.dump(json_export, f, cls=NpEncoder)
+
+    print(f"json file generated at {filename}")
+
+
 def run(parameters: dict):
     if not parameters:
         raise ValueError(
@@ -56,13 +65,14 @@ def run_joined_ds(parameters: dict):
     dataset = timeparser.parse_time_new(dataset, parameters["date_column"])
     date_start = timeparser.parse_time_start_end(parameters["start"])
     date_end = timeparser.parse_time_start_end(parameters["end"])
-
+    generate_json = bool(parameters["json_output"])
     parsedcol = f"parsed_{parameters['date_column']}"
 
     target_ds = dataset.filter(pl.col(parsedcol).is_between(date_start, date_end))
     baseline_ds = dataset.filter(~pl.col(parsedcol).is_between(date_start, date_end))
 
     summary = {"total_analyzed": 0, "drift_detected": 0, "no_drift": 0, "errors": 0}
+    json_export = {"summary": summary, "feature_metrics": []}
 
     ignored_columns = [parsedcol, parameters["date_column"]]
     elligible_numeric_features = get_numerical_drift_elligible_column(
@@ -91,6 +101,8 @@ def run_joined_ds(parameters: dict):
             baseline_ds, target_ds, col, col
         )
 
+        json_export["feature_metrics"].append(column_report_numeric)
+
         if column_report_numeric["status"] == "error":
             summary["errors"] += 1
         elif column_report_numeric["overall_drift_detected"]:
@@ -108,6 +120,9 @@ def run_joined_ds(parameters: dict):
         column_report_categoric = categorical_detector.evaluate_column(
             baseline_ds, target_ds, col, col
         )
+
+        json_export["feature_metrics"].append(column_report_categoric)
+
         if column_report_categoric["status"] == "error":
             summary["errors"] += 1
         elif column_report_categoric["overall_drift_detected"]:
@@ -121,16 +136,21 @@ def run_joined_ds(parameters: dict):
             )
         )
 
+    if generate_json:
+        export_json(json_export, parameters["json_output"])
+
     print(print_summary(summary))
 
 
 def run_separate_ds(parameters: dict):
     target_ds = load_df(parameters["target"])
     baseline_ds = load_df(parameters["baseline"])
+    generate_json = bool(parameters["json_output"])
 
     # no need to parse time since they are already seperated ?
 
     summary = {"total_analyzed": 0, "drift_detected": 0, "no_drift": 0, "errors": 0}
+    json_export = {"summary": summary, "feature_metrics": []}
 
     ignored_columns = [parameters["date_column"]]
     elligible_numeric_features = get_numerical_drift_elligible_column(
@@ -157,6 +177,8 @@ def run_separate_ds(parameters: dict):
             baseline_ds, target_ds, col, col
         )
 
+        json_export["feature_metrics"].append(column_report_numeric)
+
         if column_report_numeric["status"] == "error":
             summary["errors"] += 1
         elif column_report_numeric["overall_drift_detected"]:
@@ -173,6 +195,8 @@ def run_separate_ds(parameters: dict):
             baseline_ds, target_ds, col, col
         )
 
+        json_export["feature_metrics"].append(column_report_categoric)
+
         if column_report_categoric["status"] == "error":
             summary["errors"] += 1
         elif column_report_categoric["overall_drift_detected"]:
@@ -185,5 +209,8 @@ def run_separate_ds(parameters: dict):
                 column_report=column_report_categoric
             )
         )
+
+    if generate_json:
+        export_json(json_export, parameters["json_output"])
 
     print(print_summary(summary))
