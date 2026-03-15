@@ -1,0 +1,5 @@
+typer
+polars
+scipy
+numpy
+pyyaml

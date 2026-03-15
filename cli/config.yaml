@@ -22,3 +22,4 @@ tests:
   - column: "user_region"
     method: "js_divergence"
     threshold: 0.1
+

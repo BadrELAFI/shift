@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "shift-drift"
+version = "0.1.0"
+dependencies = [
+    "typer",
+    "polars",
+    "scipy",
+    "numpy",
+    "pyyaml",
+]
+
+[project.scripts]
+drift = "main:app"
+
+# --- ADD THIS SECTION BELOW ---
+[tool.setuptools]
+packages = ["cli", "detector", "utils"]
+py-modules = ["main", "core"]
