@@ -6,3 +6,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+file.json
+export.json
+archive/
+
