@@ -1,8 +1,0 @@
-Metadata-Version: 2.4
-Name: shift-drift
-Version: 0.1.0
-Requires-Dist: typer
-Requires-Dist: polars
-Requires-Dist: scipy
-Requires-Dist: numpy
-Requires-Dist: pyyaml

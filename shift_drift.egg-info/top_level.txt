@@ -1,5 +1,0 @@
-cli
-core
-detector
-main
-utils
