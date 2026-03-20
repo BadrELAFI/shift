@@ -1,5 +1,5 @@
 import polars as pl
-from scipy.stats import chi2_contingency, contingency
+from scipy.stats import chi2_contingency
 import numpy as np
 
 

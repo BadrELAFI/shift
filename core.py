@@ -1,5 +1,4 @@
 import polars as pl
-from utils.descriptive_stats import DescriptiveStats
 from utils.time_parser import TimeParser
 from detector.numeric_drift_detector import NumericDriftDetector
 from detector.categorical_drift_detector import CategoricalDriftDetector

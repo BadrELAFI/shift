@@ -1,4 +1,3 @@
-from numpy import isin
 import polars as pl
 import polars.selectors as cs
 import numpy as np
