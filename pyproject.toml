@@ -16,7 +16,12 @@ dependencies = [
 [project.scripts]
 drift = "main:app"
 
-# --- ADD THIS SECTION BELOW ---
 [tool.setuptools]
 packages = ["cli", "detector", "utils"]
 py-modules = ["main", "core"]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "ruff",
+]
